@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat application</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
+    <style>
+        body {
+            padding-top: 25px;
+        }
+
+        #message-container, #welcome-message{
+            padding-top: 25px;
+        }
+
+        #welcome-message{
+            text-align: center;
+        }
+
+        .username{
+            font-weight: bold;
+        }
+
+        .own-message{
+            text-align: right;
+        }
+
+        .private{
+            color: darkslateblue;
+        }
+    </style>
+</head>
+
+<body>
+    
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <form class="form">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-md-10">
+                                <input type="text" class="form-control" id="message" placeholder="Enter a messsage..">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-success" id="send">Send</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="row" id="welcome-message" style="display: none">
+            <div class="col-md-12">
+                <h3 id="welcome-h3">Welcome, Jar Jar Binks</h3>
+            </div>
+        </div>
+
+        <div class="row" id="message-container" style="display: none">
+            <div class="col-md-10 offset-md-1" id="message-holder">
+                
+            </div>
+        </div>
+
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.js" integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    
+    <script>
+        var randomNames = ['flowerPowah', 'boredomKing', 'loveSpreader', 'notAFighter', 'programmer', 'hotSauce', 'mayonesse', 'Jedi', 'JarJarBinks'];
+        var messageSent = false;
+        
+        
+        $("document").ready(() => {
+            var name = null;
+            while(name == null || name.length === 0){
+                var indexer = Math.floor(Math.random() * randomNames.length);
+                name = prompt("Please enter your name", randomNames[indexer]);
+                if(name.includes(" ")){
+                    name = null;
+                }
+            }
+
+            $("#welcome-h3").html("Welcome, " + name + "!");
+            $("#welcome-message").show("fast");
+            setTimeout(() => {
+                addMessage({username: "SERVER", message: "To send a private message type two dashes (--) and username"});
+                addMessage({username: "SERVER", message: "To generate private message prefix simply click on the username"});            
+            }, 1500);
+
+            $("#send").on("click", () => {
+                sendMessage({username : name, message: $("#message").val()});
+                $("#message").val("");
+                return false;
+            });
+
+            socket = io();
+
+            socket.on("message", addMessage);
+
+            function addMessage(message){
+                if(messageSent === false){
+                    $("#welcome-message").hide();
+                    $("#message-container").show();
+                    messageSent = true;
+                }
+
+                if(message.message.startsWith("--")){
+                    var receiver = message.message.split("--")[1].split(" ")[0];
+
+                    if(message.username === name){
+                        var messageToDisplay = message.message.replace(`--${receiver}`, "");
+                        $("#message-holder").prepend(`<p class="own-message private"><span class="username">${message.username} to ${receiver}: </span><span class="message">${messageToDisplay}</span>`);
+                    }
+
+                    if(receiver.toLowerCase() !== name.toLowerCase()){
+                        return;
+                    }else {
+                        var messageToDisplay = message.message.replace(`--${receiver}`, "");
+                        $("#message-holder").prepend(`<p class="private"><span class="username">[PRIVATE] ${message.username}: </span><span class="message">${messageToDisplay}</span>`)
+                        return;
+                    }
+                }
+
+                if(message.username !== name){
+                    $("#message-holder").prepend(`<p><span class="username">${message.username}: </span><span class="message">${message.message}</span>`);
+                } else {
+                    $("#message-holder").prepend(`<p class="own-message"><span class="username">${message.username}: </span><span class="message">${message.message}</span>`);
+                }
+            }
+
+            function sendMessage(message){
+                $.post("http://localhost:3000/", message);
+            }
+        });
+
+        $(document).on("click", ".username", (event)=>{
+            var username = $(event.target).html().split(":")[0];
+
+            $("#message").val(`--${username} `);
+        })
+
+        
+    </script>
+</body>
+</html>
